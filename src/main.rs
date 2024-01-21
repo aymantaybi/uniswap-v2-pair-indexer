@@ -13,6 +13,7 @@ use ethers::{
 };
 
 use eyre::Result;
+use models::MintEvent;
 
 pub mod models;
 pub mod schema;
@@ -30,13 +31,15 @@ async fn main() -> Result<()> {
 
     let rpc_http_url = env::var("RPC_HTTP_URL").expect("Missing RPC_HTTP_URL env var");
 
-    let sync_event_signature_hash = event_signature_hash("Sync(uint112,uint112)");
-
     let provider = Provider::<Http>::try_from(rpc_http_url)?;
 
     let client = Arc::new(provider);
 
-    let events_signatures_hashes = vec![sync_event_signature_hash];
+    let sync_event_signature_hash = event_signature_hash("Sync(uint112,uint112)");
+
+    let mint_event_signature_hash = event_signature_hash("Mint(address,uint256,uint256)");
+
+    let events_signatures_hashes = vec![sync_event_signature_hash, mint_event_signature_hash];
 
     let step = 3000;
 
@@ -54,7 +57,7 @@ async fn main() -> Result<()> {
             logs.iter().len()
         );
 
-        let new_sync_events = process_logs(logs)?;
+        let (new_sync_events, new_mint_events) = process_logs(logs)?;
 
         let _ = insert_into(sync_events::table())
             .values(new_sync_events)
@@ -70,21 +73,29 @@ fn event_signature_hash(event_signature: &str) -> H256 {
     H256::from(keccak256(event_signature.as_bytes()))
 }
 
-fn process_logs(logs: Vec<Log>) -> Result<Vec<SyncEvent>> {
+fn process_logs(logs: Vec<Log>) -> Result<(Vec<SyncEvent>, Vec<MintEvent>)> {
     let mut new_sync_events: Vec<SyncEvent> = vec![];
+    let mut new_mint_events: Vec<MintEvent> = vec![];
 
     for log in logs.into_iter() {
         let topic0 = format!("{:?}", log.topics[0]);
         match topic0.as_str() {
             "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1" => {
+                // Sync
                 let new_sync_event =
                     SyncEvent::try_from(log).expect("Cannot convert Log to SyncEvent");
-
                 new_sync_events.push(new_sync_event);
+            }
+            "0x4c209b5fc8ad50758f13e2e1088ba56a560dff690a1c6fef26394f4c03821c4f" => {
+                // Mint
+                let new_mint_event =
+                    MintEvent::try_from(log).expect("Cannot convert Log to MintEvent");
+                println!("{:?}", new_mint_event);
+                new_mint_events.push(new_mint_event);
             }
             &_ => todo!(),
         };
     }
 
-    Ok(new_sync_events)
+    Ok((new_sync_events, new_mint_events))
 }
