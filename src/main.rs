@@ -19,10 +19,13 @@ pub mod models;
 pub mod schema;
 
 use crate::{models::SyncEvent, schema::sync_events::dsl::sync_events};
+use log::{debug, error, info, warn};
 use std::{env, str::FromStr, sync::Arc};
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    env_logger::init();
+
     dotenv().ok();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
