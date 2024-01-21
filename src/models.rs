@@ -11,11 +11,11 @@ use diesel::prelude::*;
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[diesel(primary_key(block_number, transaction_index, log_index))]
 pub struct SyncEvent {
+    pub address: String,
     pub block_number: i64,
     pub transaction_index: i32,
     pub log_index: i32,
     pub transaction_hash: String,
     pub reserve_0: BigDecimal,
     pub reserve_1: BigDecimal,
-    pub address: String,
 }
