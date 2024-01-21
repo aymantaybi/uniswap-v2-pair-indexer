@@ -73,42 +73,17 @@ fn event_signature_hash(event_signature: &str) -> H256 {
 fn process_logs(logs: Vec<Log>) -> Result<Vec<SyncEvent>> {
     let mut new_sync_events: Vec<SyncEvent> = vec![];
 
-    for log in logs.iter() {
-        let Log {
-            block_number,
-            log_index,
-            transaction_hash,
-            transaction_index,
-            data,
-            address,
-            ..
-        } = log;
+    for log in logs.into_iter() {
+        let topic0 = format!("{:?}", log.topics[0]);
+        match topic0.as_str() {
+            "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1" => {
+                let new_sync_event =
+                    SyncEvent::try_from(log).expect("Cannot convert Log to SyncEvent");
 
-        let types = [ParamType::Uint(112), ParamType::Uint(112)];
-
-        let output = decode(&types, data)?;
-
-        let reserves = output
-            .into_iter()
-            .map(|t| t.into_uint().expect("Invalid reserve uint"))
-            .collect::<Vec<U256>>();
-
-        let reserve_0 =
-            BigDecimal::from_u128(reserves[0].as_u128()).expect("reserve0 BigDecimal from u128");
-        let reserve_1 =
-            BigDecimal::from_u128(reserves[1].as_u128()).expect("reserve1 BigDecimal from u128");
-
-        let new_sync_event = SyncEvent {
-            address: format!("{:?}", address),
-            transaction_hash: format!("{:?}", transaction_hash.expect("None transaction_hash")),
-            block_number: block_number.expect("None block_number").as_u64() as i64,
-            transaction_index: transaction_index.expect("None transaction_index").as_u32() as i32,
-            log_index: log_index.expect("None log_index").as_u32() as i32,
-            reserve_0,
-            reserve_1,
+                new_sync_events.push(new_sync_event);
+            }
+            &_ => todo!(),
         };
-
-        new_sync_events.push(new_sync_event);
     }
 
     Ok(new_sync_events)
