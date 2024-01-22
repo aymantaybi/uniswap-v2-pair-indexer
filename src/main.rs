@@ -3,7 +3,7 @@ use dotenvy::dotenv;
 use ethers::{
     core::types::Filter,
     providers::{Http, Middleware, Provider},
-    types::Log,
+    types::{Log, H256},
 };
 
 use eyre::Result;
@@ -37,21 +37,17 @@ async fn main() -> Result<()> {
 
     let client = Arc::new(provider);
 
-    let sync_event_signature_hash = event_signature_hash("Sync(uint112,uint112)");
-
-    let mint_event_signature_hash = event_signature_hash("Mint(address,uint256,uint256)");
-
-    let burn_event_signature_hash = event_signature_hash("Burn(address,uint256,uint256,address)");
-
-    let swap_event_signature_hash =
-        event_signature_hash("Swap(address,uint256,uint256,uint256,uint256,address)");
-
-    let events_signatures_hashes = vec![
-        sync_event_signature_hash,
-        mint_event_signature_hash,
-        burn_event_signature_hash,
-        swap_event_signature_hash,
+    let events_signatures = vec![
+        "Sync(uint112,uint112)",
+        "Mint(address,uint256,uint256)",
+        "Burn(address,uint256,uint256,address)",
+        "Swap(address,uint256,uint256,uint256,uint256,address)",
     ];
+
+    let events_signatures_hashes = events_signatures
+        .into_iter()
+        .map(event_signature_hash)
+        .collect::<Vec<H256>>();
 
     let step = 3000;
 
