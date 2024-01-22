@@ -43,6 +43,20 @@ pub struct MintEvent {
     pub amount_1: BigDecimal,
 }
 
+#[derive(Insertable, Queryable, Debug, Identifiable)]
+#[diesel(table_name = crate::schema::burn_events)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(primary_key(block_number, transaction_index, log_index))]
+pub struct BurnEvent {
+    pub address: String,
+    pub block_number: i64,
+    pub transaction_index: i32,
+    pub log_index: i32,
+    pub transaction_hash: String,
+    pub amount_0: BigDecimal,
+    pub amount_1: BigDecimal,
+}
+
 impl TryFrom<Log> for SyncEvent {
     type Error = &'static str;
 
@@ -98,6 +112,39 @@ impl TryFrom<Log> for MintEvent {
             BigDecimal::from_str(&amounts[1].to_string()).expect("amount_1 BigDecimal from string");
 
         Ok(MintEvent {
+            address,
+            transaction_hash,
+            block_number,
+            transaction_index,
+            log_index,
+            amount_0,
+            amount_1,
+        })
+    }
+}
+
+impl TryFrom<Log> for BurnEvent {
+    type Error = &'static str;
+
+    fn try_from(log: Log) -> Result<Self, Self::Error> {
+        let (address, transaction_hash, block_number, transaction_index, log_index) =
+            extract_event_base_details(&log);
+
+        let types = [ParamType::Uint(256), ParamType::Uint(256)];
+
+        let output = decode(&types, &log.data).map_err(|err| "Cannot decode log data")?;
+
+        let amounts = output
+            .into_iter()
+            .map(|t| t.into_uint().expect("Invalid reserve uint"))
+            .collect::<Vec<U256>>();
+
+        let amount_0 =
+            BigDecimal::from_str(&amounts[0].to_string()).expect("amount_0 BigDecimal from string");
+        let amount_1 =
+            BigDecimal::from_str(&amounts[1].to_string()).expect("amount_1 BigDecimal from string");
+
+        Ok(BurnEvent {
             address,
             transaction_hash,
             block_number,
