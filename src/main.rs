@@ -15,6 +15,7 @@ use ethers::{
 use eyre::Result;
 use models::MintEvent;
 
+pub mod helpers;
 pub mod models;
 pub mod schema;
 
@@ -55,7 +56,7 @@ async fn main() -> Result<()> {
 
         let logs = client.get_logs(&filter).await?;
 
-        println!(
+        info!(
             "Pulled {} new logs from block {from_block} to block {to_block}",
             logs.iter().len()
         );
@@ -66,7 +67,7 @@ async fn main() -> Result<()> {
             .values(new_sync_events)
             .execute(connection);
 
-        println!("Inserted events to the database");
+        info!("Inserted events to the database");
     }
 
     Ok(())
@@ -93,7 +94,7 @@ fn process_logs(logs: Vec<Log>) -> Result<(Vec<SyncEvent>, Vec<MintEvent>)> {
                 // Mint
                 let new_mint_event =
                     MintEvent::try_from(log).expect("Cannot convert Log to MintEvent");
-                println!("{:?}", new_mint_event);
+                debug!("{:?}", new_mint_event);
                 new_mint_events.push(new_mint_event);
             }
             &_ => todo!(),

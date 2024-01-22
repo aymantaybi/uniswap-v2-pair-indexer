@@ -13,6 +13,8 @@ use ethers::{
 };
 use eyre::Result;
 
+use crate::helpers::extract_event_base_details;
+
 #[derive(Insertable, Queryable, Debug, Identifiable)]
 #[diesel(table_name = crate::schema::sync_events)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -45,19 +47,12 @@ impl TryFrom<Log> for SyncEvent {
     type Error = &'static str;
 
     fn try_from(log: Log) -> Result<Self, Self::Error> {
-        let Log {
-            block_number,
-            log_index,
-            transaction_hash,
-            transaction_index,
-            data,
-            address,
-            ..
-        } = log;
+        let (address, transaction_hash, block_number, transaction_index, log_index) =
+            extract_event_base_details(&log);
 
         let types = [ParamType::Uint(112), ParamType::Uint(112)];
 
-        let output = decode(&types, &data).map_err(|err| "Cannot decode log data")?;
+        let output = decode(&types, &log.data).map_err(|err| "Cannot decode log data")?;
 
         let reserves = output
             .into_iter()
@@ -70,11 +65,11 @@ impl TryFrom<Log> for SyncEvent {
             BigDecimal::from_u128(reserves[1].as_u128()).expect("reserve1 BigDecimal from u128");
 
         Ok(SyncEvent {
-            address: format!("{:?}", address),
-            transaction_hash: format!("{:?}", transaction_hash.expect("None transaction_hash")),
-            block_number: block_number.expect("None block_number").as_u64() as i64,
-            transaction_index: transaction_index.expect("None transaction_index").as_u32() as i32,
-            log_index: log_index.expect("None log_index").as_u32() as i32,
+            address,
+            transaction_hash,
+            block_number,
+            transaction_index,
+            log_index,
             reserve_0,
             reserve_1,
         })
@@ -85,19 +80,12 @@ impl TryFrom<Log> for MintEvent {
     type Error = &'static str;
 
     fn try_from(log: Log) -> Result<Self, Self::Error> {
-        let Log {
-            block_number,
-            log_index,
-            transaction_hash,
-            transaction_index,
-            data,
-            address,
-            ..
-        } = log;
+        let (address, transaction_hash, block_number, transaction_index, log_index) =
+            extract_event_base_details(&log);
 
         let types = [ParamType::Uint(256), ParamType::Uint(256)];
 
-        let output = decode(&types, &data).map_err(|err| "Cannot decode log data")?;
+        let output = decode(&types, &log.data).map_err(|err| "Cannot decode log data")?;
 
         let amounts = output
             .into_iter()
@@ -110,11 +98,11 @@ impl TryFrom<Log> for MintEvent {
             BigDecimal::from_str(&amounts[1].to_string()).expect("amount_1 BigDecimal from string");
 
         Ok(MintEvent {
-            address: format!("{:?}", address),
-            transaction_hash: format!("{:?}", transaction_hash.expect("None transaction_hash")),
-            block_number: block_number.expect("None block_number").as_u64() as i64,
-            transaction_index: transaction_index.expect("None transaction_index").as_u32() as i32,
-            log_index: log_index.expect("None log_index").as_u32() as i32,
+            address,
+            transaction_hash,
+            block_number,
+            transaction_index,
+            log_index,
             amount_0,
             amount_1,
         })
