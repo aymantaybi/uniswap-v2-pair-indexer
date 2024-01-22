@@ -27,6 +27,16 @@ async fn main() -> Result<()> {
 
     dotenv().ok();
 
+    let args: Vec<String> = env::args().collect();
+
+    let start_at_block = args[1].parse::<usize>()?;
+
+    let stop_at_block = args[2].parse::<usize>()?;
+
+    let step = args[3].parse::<usize>()?;
+
+    println!("{} {} {}", start_at_block, stop_at_block, step);
+
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
     let connection = &mut PgConnection::establish(&database_url)?;
@@ -49,11 +59,9 @@ async fn main() -> Result<()> {
         .map(event_signature_hash)
         .collect::<Vec<H256>>();
 
-    let step = 3000;
-
     let filter = Filter::new().topic0(events_signatures_hashes);
 
-    for from_block in (30170377..31340138).step_by(step) {
+    for from_block in (start_at_block..stop_at_block).step_by(step) {
         let to_block = from_block + step;
 
         let filter = filter.clone().from_block(from_block).to_block(to_block);
