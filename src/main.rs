@@ -3,7 +3,7 @@ use dotenvy::dotenv;
 use ethers::{
     core::types::Filter,
     providers::{Http, Middleware, Provider},
-    types::{Log, H256},
+    types::{Log, H160, H256},
 };
 
 use eyre::Result;
@@ -35,6 +35,8 @@ async fn main() -> Result<()> {
 
     let step = args[3].parse::<usize>()?;
 
+    let pair_address = args.get(4);
+
     println!("{} {} {}", start_at_block, stop_at_block, step);
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -59,19 +61,23 @@ async fn main() -> Result<()> {
         .map(event_signature_hash)
         .collect::<Vec<H256>>();
 
-    let filter = Filter::new().topic0(events_signatures_hashes);
+    let mut filter = Filter::new().topic0(events_signatures_hashes);
+
+    if let Some(pair_address) = pair_address {
+        let pair_address = pair_address.parse::<H160>()?;
+        filter = filter.address(pair_address);
+    };
 
     for from_block in (start_at_block..stop_at_block).step_by(step) {
         let to_block = from_block + step;
 
         let filter = filter.clone().from_block(from_block).to_block(to_block);
 
+        info!("Pulling new logs from block {from_block} to block {to_block}");
+
         let logs = client.get_logs(&filter).await?;
 
-        info!(
-            "Pulled {} new logs from block {from_block} to block {to_block}",
-            logs.iter().len()
-        );
+        info!("Pulled {} new logs", logs.iter().len());
 
         let (new_sync_events, new_mint_events, new_burn_events, new_swap_events) =
             process_logs(logs)?;
